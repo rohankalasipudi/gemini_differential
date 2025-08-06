@@ -1,50 +1,79 @@
 # main.py
 
-import streamlit as st
-import symptoms
+# This file serves as the main entry point for the symptom analysis application.
+# It uses data from 'symptoms.py' and 'treatments.py' to provide a
+# differential diagnosis and corresponding treatment plan.
 
-def main():
-    """
-    Main function for the Streamlit symptom analysis tool.
-    """
-    # --- UI Elements ---
-    st.title("Medical Symptom Analyzer")
-    st.write("This is an educational tool. It is not a substitute for professional medical advice.")
-    st.write("Please enter your symptoms below, separated by commas (e.g., fever, cough, headache).")
-    
-    # Text input field for user symptoms
-    user_input = st.text_input("Enter symptoms:")
-    
-    # A button to trigger the analysis
-    if st.button("Analyze Symptoms"):
-        if not user_input:
-            st.warning("Please enter at least one symptom.")
-            return
+# Import the necessary modules.
+from symptoms import analyze_symptoms, DATA
+from treatments import TREATMENTS
 
-        # Split the input string into a list of symptoms
-        user_symptoms = [s.strip() for s in user_input.split(',')]
+def run_diagnosis():
+    """
+    Prompts the user for symptoms, runs the diagnostic analysis, and
+    displays the results, including potential diseases and their treatments.
+    """
+    print("Welcome to the Differential Diagnosis & Treatment Companion!")
+    print("-" * 50)
+    print("Please enter a list of symptoms you are experiencing, separated by commas.")
+    print("Example: fever, cough, joint pain, fatigue")
+    print("You can also type 'list symptoms' to see all available symptoms.")
+    print("-" * 50)
+
+    user_input = input("Your symptoms: ").strip()
+
+    if user_input.lower() == "list symptoms":
+        print("\nAvailable Symptoms:")
+        # Display the symptoms in a clean, multi-column format.
+        symptoms = sorted(DATA["symptoms"])
+        num_cols = 4
+        col_width = max(len(s) for s in symptoms) + 2
+        for i, symptom in enumerate(symptoms):
+            print(f"{symptom:<{col_width}}", end="")
+            if (i + 1) % num_cols == 0:
+                print()
+        print("\n" + "-" * 50)
+        return
+
+    # Process user symptoms and get the differential diagnosis.
+    user_symptoms = [s.strip().lower() for s in user_input.split(',')]
+    disease_scores = analyze_symptoms(user_symptoms)
+
+    if not disease_scores:
+        print("\nNo matching diseases found for the provided symptoms. Please try again.")
+        return
+
+    # Sort the diseases by score in descending order and display the top results.
+    sorted_diseases = sorted(disease_scores.items(), key=lambda item: item[1]['score'], reverse=True)
+    
+    print("\n" + "=" * 50)
+    print("Differential Diagnosis and Treatment Plan")
+    print("=" * 50)
+    
+    for i, (disease, data) in enumerate(sorted_diseases):
+        score = data['score']
+        symptoms_matched = data['symptoms_matched']
+        total_symptoms = data['total_symptoms']
+        differentiating_factors = data['differentiating_factors']
         
-        # Analyze the symptoms using the function from symptoms.py
-        results = symptoms.analyze_symptoms(user_symptoms)
-        
-        # Sort the results by score in descending order
-        sorted_results = sorted(results.items(), key=lambda item: item[1]['score'], reverse=True)
-        
-        # --- Display the Diagnostic Report ---
-        st.subheader("Diagnostic Report")
-        
-        if not sorted_results:
-            st.info("No matching diseases found for the symptoms provided.")
+        print(f"\n({i+1}) Potential Disease: {disease}")
+        print(f"  - Match Score: {score} out of {total_symptoms} known symptoms.")
+        print(f"  - Matched Symptoms: {', '.join(symptoms_matched)}")
+        print(f"  - Differentiating Factors: {differentiating_factors}")
+
+        # Check for and display the treatment plan for the disease.
+        if disease in TREATMENTS:
+            treatment_data = TREATMENTS[disease]
+            print("\n  ** Treatment Plan **")
+            print(f"  Goals: {', '.join(treatment_data['goals'])}")
+            print(f"  First-Line Therapy: {', '.join(treatment_data['first_line'])}")
+            print(f"  Second-Line Therapy: {', '.join(treatment_data['second_line'])}")
+            print(f"  Supportive Care: {', '.join(treatment_data['supportive_care'])}")
         else:
-            for disease, data in sorted_results:
-                match_percentage = (data['score'] / data['total_symptoms']) * 100
-                
-                # Use markdown to format the output for better readability
-                st.markdown(f"**Potential Disease:** `{disease}`")
-                st.markdown(f"**Match Score:** `{data['score']} out of {data['total_symptoms']}` symptoms matched ({match_percentage:.1f}%)")
-                st.markdown(f"**Symptoms Matched:** {', '.join(data['symptoms_matched'])}")
-                st.markdown(f"**Differentiating Factors:** {data['differentiating_factors']}")
-                st.markdown("---") # Add a separator between diseases
-                
+            print("\n  - Treatment information not available for this disease.")
+        
+        print("\n" + "-" * 50)
+
 if __name__ == "__main__":
-    main()
+    run_diagnosis()
+
